@@ -9,8 +9,6 @@ A simple extension to let you view all your md notes as cards! If you have used 
 3. Add a Cover to your cards. 
 4. Light/Dark mode can be chosen!
 
-![](show.gif)
-
 ## Usage
 
 1. Open VSCode.
