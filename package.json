@@ -2,7 +2,7 @@
   "name": "note-card-view",
   "displayName": "Note Cards",
   "description": "A simple extension to let you view all your md notes as cards!",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "XuanTree",
   "repository": {
     "type": "git",
