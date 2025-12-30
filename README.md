@@ -16,7 +16,7 @@ A simple extension to let you view all your md notes as cards! If you have used 
 3. Search for "Note Cards" and install it.
 4. Open a folder containing your md notes.
 
-You can use Yaml front matter in your md notes to add a cover to your cards. The cover will be displayed on the card. The cover can be a link to an image or a local image.
+You can use Yaml front matter in your md notes to add a cover to your cards. The cover will be displayed on the card. The cover can be a link to an image or a local image.**Using command `Ctrl+Shift+P` to open the command palette and type "Note Cards: Open View" to open the panel.**
 
 ![](image.png)
 
