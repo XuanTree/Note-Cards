@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
         // 显示进度条
         vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: '正在扫描笔记文件...',
+            title: 'Loading...',
             cancellable: false
         }, async (progress) => {
             progress.report({ increment: 0 });
@@ -57,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
                 // 创建并显示Webview面板
                 const panel = vscode.window.createWebviewPanel(
                     'noteBaseView', // 标识符
-                    `笔记视图 (${notes.length} 篇笔记)`, // 面板标题
+                    `Cards Panel`, // 面板标题
                     vscode.ViewColumn.One, // 在编辑器的哪一列显示
                     {
                         // 启用脚本，允许在webview中使用JavaScript
@@ -178,6 +178,15 @@ function markdownToPlainText(markdown: string): string {
         .replace(/^[\s]*\d+\.\s+/gm, '')
         // 去除多余的空行
         .replace(/\n\s*\n\s*\n/g, '\n\n')
+        //去除表格竖线
+        .replace(/\|/g, '')
+        // 去除横线
+        .replace(/-/g, '')
+        // 去除冒号
+        .replace(/:/g, '')
+        // 去除方括号
+        .replace(/\[/g, '')
+        .replace(/\]/g, '')
         .trim();
     
     return plainText;
@@ -340,14 +349,14 @@ function getWebviewContent(notes: NoteInfo[], webview: vscode.Webview): string {
                     const coverUri = webview.asWebviewUri(vscode.Uri.file(note.cover));
                     coverSrc = coverUri.toString();
                     console.log(`将本地路径 "${note.cover}" 转换为Webview URI: "${coverSrc}"`);
+                    coverHtml = `<div class="note-cover"><img src="${coverSrc}" alt="封面图片" /></div>`;
                 } catch (error) {
                     console.error(`转换封面图片URI失败: ${error}`);
                     coverHtml = '<div class="note-cover">封面图片路径无效</div>';
                 }
-            }
-            
-            if (coverSrc) {
-                coverHtml = `<div class="note-cover"><img src="${coverSrc}" alt="${note.title}" onerror="console.error('图片加载失败:', this.src)"></div>`;
+            } else {
+                // 如果是网络URL或data URL，直接使用
+                coverHtml = `<div class="note-cover"><img src="${coverSrc}" alt="封面图片" /></div>`;
             }
         }
         
@@ -378,7 +387,7 @@ function getWebviewContent(notes: NoteInfo[], webview: vscode.Webview): string {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src * data:; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
-        <title>📋 笔记视图</title>
+        <title>📋 Note Cards</title>
         <style>
             :root {
                 --bg-primary: #f5f5f5;
@@ -610,13 +619,18 @@ function getWebviewContent(notes: NoteInfo[], webview: vscode.Webview): string {
             .note-cover {
                 margin-bottom: 15px;
                 text-align: center;
+                min-height: 100px;
+                background-color: var(--bg-secondary);
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             
             .note-cover img {
                 max-width: 100%;
-                max-height: 150px;
+                max-height: 200px;
                 border-radius: 4px;
-                object-fit: cover;
+                object-fit: contain;
             }
             
             .note-header {
@@ -843,7 +857,7 @@ function getWebviewContent(notes: NoteInfo[], webview: vscode.Webview): string {
                 // 更新主题图标
                 function updateThemeIcon(theme) {
                     themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
-                    themeToggleBtn.title = theme === 'dark' ? '切换到亮色主题' : '切换到暗色主题';
+                    themeToggleBtn.title = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
                 }
                 
                 // 切换主题
@@ -893,12 +907,12 @@ function getWebviewContent(notes: NoteInfo[], webview: vscode.Webview): string {
                             // 筛选笔记卡片
                             noteCards.forEach(card => {
                                 if (selectedTag === 'all') {
-                                    card.style.display = 'block';
+                                    card.style.display = 'flex';
                                 } else {
                                     const cardTagsAttr = card.getAttribute('data-tags');
                                     const cardTags = cardTagsAttr === 'none' ? [] : cardTagsAttr.split(',');
                                     if (cardTags.includes(selectedTag)) {
-                                        card.style.display = 'block';
+                                        card.style.display = 'flex';
                                     } else {
                                         card.style.display = 'none';
                                     }
