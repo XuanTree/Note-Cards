@@ -153,9 +153,11 @@ function markdownToPlainText(markdown: string): string {
     if (!markdown) {
         return '';
     }
-    
+    let plainText = markdown;
+    // 先去除所有块级HTML标签（如<div>...</div>、<style>...</style>、<script>...</script>等）
+    plainText = plainText.replace(/<([a-zA-Z][a-zA-Z0-9]*)[\s\S]*?<\/\1>/gi, '');
     // 去除Markdown格式标记
-    let plainText = markdown
+    plainText = plainText
         // 去除标题标记
         .replace(/^#+\s+/gm, '')
         // 去除粗体和斜体标记
@@ -188,7 +190,6 @@ function markdownToPlainText(markdown: string): string {
         .replace(/\[/g, '')
         .replace(/\]/g, '')
         .trim();
-    
     return plainText;
 }
 
@@ -209,30 +210,38 @@ function truncateText(text: string, maxLength: number): string {
     return truncated + '...';
 }
 
-// 解析markdown文件，提取yaml frontmatter
+// 解析markdown文件，提取yaml frontmatter，并修复HTML块导致的卡片重叠问题
 async function parseMarkdownFile(filePath: string): Promise<NoteInfo | null> {
     try {
-        const content = await fs.promises.readFile(filePath, 'utf-8');
+        let content = await fs.promises.readFile(filePath, 'utf-8');
         const fileName = path.basename(filePath, '.md');
         const fileDir = path.dirname(filePath);
-        
+
+        // --- 修复：提取并占位HTML块 ---
+        // 支持多行的<div>...</div>、<style>...</style>等块级HTML
+        const htmlBlocks: string[] = [];
+        content = content.replace(/<(div|style)[\s\S]*?<\/\1>/gi, (match) => {
+            htmlBlocks.push(match);
+            return `<!--HTML_BLOCK_${htmlBlocks.length - 1}-->`;
+        });
+
         // 简单的yaml frontmatter解析
         console.log('开始解析文件:', filePath);
         const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
         let cover: string | undefined;
         let title = fileName; // 默认使用文件名作为标题
         let tags: string[] = [];
-        
+
         if (frontmatterMatch) {
             const frontmatter = frontmatterMatch[1];
             console.log('提取到frontmatter内容:', frontmatter);
-            
+
             // 解析Cover字段（不区分大小写）
             const coverMatch = frontmatter.match(/^Cover:\s*(.+)$/mi);
             if (coverMatch) {
                 cover = coverMatch[1].trim();
                 console.log(`解析到Cover字段: "${cover}"`);
-                
+
                 // 检查是否是本地相对路径（不是网络URL）
                 if (cover && !cover.match(/^https?:\/\//) && !cover.match(/^data:/)) {
                     // 如果是相对路径，转换为绝对路径
@@ -247,7 +256,7 @@ async function parseMarkdownFile(filePath: string): Promise<NoteInfo | null> {
                 if (relaxedMatch) {
                     cover = relaxedMatch[1].trim();
                     console.log(`使用宽松匹配解析到Cover字段: "${cover}"`);
-                    
+
                     // 检查是否是本地相对路径（不是网络URL）
                     if (cover && !cover.match(/^https?:\/\//) && !cover.match(/^data:/)) {
                         // 如果是相对路径，转换为绝对路径
@@ -263,7 +272,7 @@ async function parseMarkdownFile(filePath: string): Promise<NoteInfo | null> {
                         if (line.toLowerCase().startsWith('cover:')) {
                             cover = line.substring(6).trim();
                             console.log(`逐行解析到Cover字段: "${cover}"`);
-                            
+
                             // 检查是否是本地相对路径（不是网络URL）
                             if (cover && !cover.match(/^https?:\/\//) && !cover.match(/^data:/)) {
                                 // 如果是相对路径，转换为绝对路径
@@ -276,29 +285,32 @@ async function parseMarkdownFile(filePath: string): Promise<NoteInfo | null> {
                     }
                 }
             }
-            
+
             // 解析Title字段（不区分大小写）
             const titleMatch = frontmatter.match(/^Title:\s*(.+)$/mi);
             if (titleMatch) {
                 title = titleMatch[1].trim();
             }
-            
+
             // 解析Tags字段（不区分大小写）
             const tagsMatch = frontmatter.match(/^Tags:\s*(.+)$/mi);
             if (tagsMatch) {
                 tags = tagsMatch[1].split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
             }
         }
-        
+
         // 提取内容并转换为纯文本
         const contentWithoutFrontmatter = frontmatterMatch 
             ? content.slice(frontmatterMatch[0].length).trim()
             : content.trim();
-        
+
+        // --- 修复：还原HTML块 ---
+        let restoredContent = contentWithoutFrontmatter.replace(/<!--HTML_BLOCK_(\d+)-->/g, (_, idx) => htmlBlocks[Number(idx)] || '');
+
         // 将Markdown转换为纯文本并智能截断
-        const plainText = markdownToPlainText(contentWithoutFrontmatter);
+        const plainText = markdownToPlainText(restoredContent);
         const excerpt = truncateText(plainText, 120) || '暂无内容摘要';
-        
+
         return {
             title,
             cover,
